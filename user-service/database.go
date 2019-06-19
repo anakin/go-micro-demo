@@ -13,7 +13,7 @@ func CreateConnection() (*gorm.DB, error) {
 	//password := os.Getenv("DB_PASSWORD")
 	host := "127.0.0.1"
 	user := "testuser"
-	password := "123456"
+	password := "test123"
 	DBName := "test"
 	str := fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8&parseTime=True", user, password, host, DBName)
 	db, err := gorm.Open("mysql", str)

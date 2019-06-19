@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	pb "github.com/anakin/gomicro/user-service/proto/user"
+	"github.com/micro/go-micro/metadata"
+	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
 	"log"
@@ -32,13 +34,26 @@ func (srv *service) GetAll(ctx context.Context, req *pb.Request, res *pb.Respons
 }
 
 func (srv *service) Auth(ctx context.Context, req *pb.User, res *pb.Token) error {
-	log.Println("Logging in with:", req.Email, req.Password)
+	md, ok := metadata.FromContext(ctx)
+	if !ok {
+		md = make(map[string]string)
+	}
+	var sp opentracing.Span
+	wireContext, _ := opentracing.GlobalTracer().Extract(opentracing.TextMap, opentracing.TextMapCarrier(md))
+	// create new span and bind with context
+	sp = opentracing.StartSpan("Auth", opentracing.ChildOf(wireContext))
+	// record request
+	sp.SetTag("req", req)
+	defer func() {
+		// record response
+		sp.SetTag("res", res)
+		// before function return stop span, cuz span will counted how much time of this function spent
+		sp.Finish()
+	}()
 	user, err := srv.repo.GetByEmail(req.Email)
-	log.Println(user)
 	if err != nil {
 		return err
 	}
-	log.Printf("user password:%v,req password:%v", user.Password, req.Password)
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
 		return err
 	}
